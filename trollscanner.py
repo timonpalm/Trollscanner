@@ -15,13 +15,21 @@ class Net(nn.Module):
     def __init__(self, vocab_size, embedding_dim):
         super(Net, self).__init__()
         self.embeddings = nn.Embedding(vocab_size, embedding_dim)
-        self.conv = nn.Conv2d(embedding_dim, 64, 18)
-        self.conv3 = nn.Conv2d(embedding_dim, ,)
+        self.conv3 = nn.Conv2d(1, 2, 3)
+        self.conv4 = nn.Conv2d(1, 2, 4)
+        self.conv5 = nn.Conv2d(1, 2, 5)
         self.maxpool = nn.MaxPool1d(2)
 
     def forward(self, input):
         embids = self.embeddings(input)
-        print(embids)
+        embids = embids.unsqueeze(0)
+        embids = embids.unsqueeze(0)
+        print(embids.size())        # TODO: MaxPooling
+        feature3 = self.conv3(embids)
+        feature4 = self.conv4(embids)
+        feature5 = self.conv5(embids)
+        print(feature3)
+        print(feature3.size())
         
 
 def getData():
@@ -41,7 +49,7 @@ def getData():
      
     vocab = set(vocab)
     vocab_size = len(vocab)
-    random.shuffle(data_list)
+    #random.shuffle(data_list)
     test_data = data_list[:1000]
     train_data = data_list[1001:]
     
