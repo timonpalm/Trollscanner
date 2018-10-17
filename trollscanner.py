@@ -9,6 +9,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
+import re
 
 class Net(nn.Module):
 
@@ -29,7 +30,7 @@ class Net(nn.Module):
         feature3 = self.conv3(embids)   # extract the fearures with different kernels
         feature4 = self.conv4(embids)
         feature5 = self.conv5(embids)
-        print(feature3.size())
+        #print(feature3.size())
         
         feature_vec = []    # constant feature vector with size 6x1 to feed it in fcl
         feature_vec.append(torch.max(feature3[0,0,:,:]))    # get all highest values of each features of the 
@@ -40,20 +41,20 @@ class Net(nn.Module):
         feature_vec.append(torch.max(feature5[0,1,:,:]))
         feature_vec = torch.Tensor(feature_vec)
         
-        print(feature_vec)
+        #print(feature_vec)
         
         output = self.fcl(feature_vec)  # pass into fcl
         output = torch.sigmoid(output)  # sigmoid is better then softmax because output is 0-1 and sums up to 1
                                         # general better for binary classification
         
-        print("output: ", output)
+        return output
         
         
         
         '''
         TODO:
-        Sometimes the sentence has only 2 words then the kernel size is greater than
-        the embedings matrix
+        - Sometimes the sentence has only 2 words then the kernel size is greater than
+          the embedings matrix
         '''
         
 
@@ -68,11 +69,23 @@ def getData():
     data_list = [[]]
     vocab = []
     
+    '''
+    TODO:
+        seperate the words from the signs (improvable)
+    '''
+    
     for elem in data:
-        data_list.append([elem['content'], int(elem['annotation']['label'][0])])
-        vocab.extend(elem['content'].split())
+        if len(re.split('(\W+)', elem['content'])) < 5:
+            continue
+        tmp = int(elem['annotation']['label'][0])
+        if tmp == 0:
+            data_list.append([elem['content'], [0.999, 0.001]]) # [1,0] for no Troll
+        else:
+            data_list.append([elem['content'], [0.001, 0.999]]) # [0,1] for Troll
+        vocab.extend(re.split('(\W+)', elem['content']))
      
     vocab = set(vocab)  # all words given in train_data
+    print(vocab)
     vocab_size = len(vocab)
     random.shuffle(data_list)   # to get better resolds
     test_data = data_list[:1000]    # extract 1000 for testing
@@ -88,21 +101,37 @@ model = Net(vocab_size, 10)     # 10 embeddings for each word
 
 for epoch in range(1):
     total_loss = 0
-    '''
+    
     for data in train_data:
-        try:
-            sentence = data[0]
-            target = data[1]
-            sentence_idxs = torch.tensor([word_to_ix[w] for w in sentence.split()], dtype=torch.long)
-            model(sentence_idxs)
+
+        sentence = data[0]  # tweeat in string
+        sentence_split = re.split('(\W+)', sentence)
+        target = torch.Tensor(data[1])    # label
+        sentence_idxs = torch.tensor([word_to_ix[w] for w in sentence_split], dtype=torch.long)
+        
+        criterion = nn.MSELoss()
+        
+        out = model(sentence_idxs)
+        #print("out", out)
+        loss = criterion(out, target)
+        print("loss: ", loss)
+        
+        model.zero_grad()
+        loss.backward()
+        optimizer = optim.SGD(model.parameters(), lr=0.01)
+        optimizer.step()
+        
+'''
+TODO: Testing fucntion
+'''
             
-        except: pass
+       
     '''
     sentence = train_data[0][0]
     target = train_data[0][1]
     print(sentence)
     sentence_idxs = torch.tensor([word_to_ix[w] for w in sentence.split()], dtype=torch.long)
     model(sentence_idxs)
-    
+    '''
 
 
